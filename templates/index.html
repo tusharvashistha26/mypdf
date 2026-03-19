@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>MyPDF</title>
+
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/loader.css">
+
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+
+    <script src="/static/app.js" defer></script>
+
+</head>
+
+<body>
+
+    <div class="navbar">
+
+        <button onclick="toggleSidebar()">☰</button>
+
+        <h2>MyPDF</h2>
+
+        <div class="nav-links">
+            <a class="dashboard-btn" onclick="showTool('dashboard')">🏠 Dashboard</a>
+        </div>
+
+    </div>
+
+
+    <div class="app">
+
+        <div class="sidebar" id="sidebar">
+
+            <h2>📄 MyPDF</h2>
+
+            <button onclick="showTool('dashboard')">Dashboard</button>
+            <button onclick="showTool('imagepdf')">Images → PDF</button>
+            <button onclick="showTool('compress')">Compress PDF</button>
+            <button onclick="showTool('merge')">Merge PDFs</button>
+            <button onclick="showTool('split')">Split PDF</button>
+            <button onclick="showTool('wordpdf')">Word → PDF</button>
+            <button onclick="showTool('pdftoword')">PDF → Word</button>
+
+        </div>
+
+
+        <div class="main">
+
+            <h1>MyPDF Toolkit</h1>
+
+            <div id="loader" class="loader hidden"></div>
+
+
+            <!-- DASHBOARD -->
+
+            <div id="dashboard" class="tool">
+
+                <h2>PDF Tools</h2>
+
+                <div class="tool-grid">
+
+                    <div class="tool-card" onclick="showTool('imagepdf')">
+                        📷
+                        <h3>Images → PDF</h3>
+                        <p>Convert images into PDF</p>
+                    </div>
+
+                    <div class="tool-card" onclick="showTool('compress')">
+                        🗜
+                        <h3>Compress PDF</h3>
+                        <p>Reduce PDF file size</p>
+                    </div>
+
+                    <div class="tool-card" onclick="showTool('merge')">
+                        📑
+                        <h3>Merge PDFs</h3>
+                        <p>Combine PDFs together</p>
+                    </div>
+
+                    <div class="tool-card" onclick="showTool('split')">
+                        ✂
+                        <h3>Split PDF</h3>
+                        <p>Extract pages from PDF</p>
+                    </div>
+
+                    <div class="tool-card" onclick="showTool('wordpdf')">
+                        📄
+                        <h3>Word → PDF</h3>
+                        <p>Convert DOCX to PDF</p>
+                    </div>
+
+                    <div class="tool-card" onclick="showTool('pdftoword')">
+                        📝
+                        <h3>PDF → Word</h3>
+                        <p>Convert PDF to DOCX</p>
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- IMAGE → PDF -->
+
+            <div id="imagepdf" class="tool hidden">
+
+                <h2>Images → PDF</h2>
+
+                <div class="drop-zone" id="dropZone">
+                    <p>Drag & Drop Images Here</p>
+                    <input type="file" id="imageInput" multiple>
+                </div>
+
+                <div id="preview"></div>
+
+                <div class="action-buttons">
+                    <button onclick="uploadImages()">Convert to PDF</button>
+                    <button class="discard-btn" onclick="clearImages()">Discard</button>
+                </div>
+
+                <div class="progress">
+                    <div id="uploadProgress"></div>
+                </div>
+
+            </div>
+
+
+            <!-- COMPRESS PDF -->
+
+            <div id="compress" class="tool hidden">
+
+                <h2>Compress PDF</h2>
+
+                <input type="file" id="compressFile">
+
+                <select id="compressLevel">
+                    <option value="/screen">High Compression</option>
+                    <option value="/ebook">Medium Compression</option>
+                    <option value="/printer">Low Compression</option>
+                </select>
+
+                <p id="sizeInfo"></p>
+                <p id="compressionResult"></p>
+
+                <div class="action-buttons">
+                    <button onclick="compressPDF()">Compress</button>
+                    <button class="discard-btn" onclick="clearCompress()">Discard</button>
+                </div>
+
+            </div>
+
+
+            <!-- MERGE PDF -->
+
+            <div id="merge" class="tool hidden">
+
+                <h2>Merge PDFs</h2>
+
+                <input type="file" id="mergeFiles" multiple>
+
+                <div id="pdfPreview"></div>
+
+                <div class="action-buttons">
+                    <button onclick="mergePDF()">Merge</button>
+                    <button class="discard-btn" onclick="clearMerge()">Discard</button>
+                </div>
+
+            </div>
+
+
+            <!-- SPLIT PDF -->
+
+            <div id="split" class="tool hidden">
+
+                <h2>Split PDF</h2>
+
+                <input type="file" id="splitFile">
+
+                <input type="number" id="splitPage" placeholder="Enter page number">
+
+                <div class="action-buttons">
+                    <button onclick="splitPDF()">Extract Page</button>
+                    <button class="discard-btn" onclick="clearSplit()">Discard</button>
+                </div>
+
+            </div>
+
+
+            <!-- WORD → PDF -->
+
+            <div id="wordpdf" class="tool hidden">
+
+                <h2>Word → PDF</h2>
+
+                <input type="file" id="wordFile" accept=".doc,.docx">
+
+                <div class="action-buttons">
+                    <button onclick="convertWord()">Convert to PDF</button>
+                    <button class="discard-btn" onclick="clearWord()">Discard</button>
+                </div>
+
+            </div>
+
+
+            <!-- PDF → WORD -->
+
+            <div id="pdftoword" class="tool hidden">
+
+                <h2>PDF → Word</h2>
+
+                <input type="file" id="pdfWordFile" accept=".pdf">
+
+                <div class="action-buttons">
+                    <button onclick="convertPDF()">Convert to Word</button>
+                    <button class="discard-btn" onclick="clearPDFWord()">Discard</button>
+                </div>
+
+            </div>
+
+
+        </div>
+
+    </div>
+
+</body>
+
+</html>

@@ -3,6 +3,6 @@ services:
     name: mypdf
     env: python
     buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn main:app --reload
+    startCommand: uvicorn main:app
 UPLOAD_DIR = "/data/uploads"
 OUTPUT_DIR = "/data/outputs"

@@ -5,3 +5,5 @@ pypdf
 python-multipart
 pdf2docx
 docx2pdf
+ghostscript
+jinja2

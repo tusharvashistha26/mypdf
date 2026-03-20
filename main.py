@@ -72,7 +72,7 @@ async def compress_pdf(file: UploadFile = File(...), level: str = Form(...)):
     with open(input_path, "wb") as f:
         f.write(await file.read())
 
-    gs_path = r"C:\Program Files\gs\gs10.06.0\bin\gswin64c.exe"
+    gs_path = "gs"
 
     subprocess.run([
         gs_path,

@@ -6,21 +6,19 @@ from fastapi.staticfiles import StaticFiles
 
 from pdf2docx import Converter
 from docx2pdf import convert
-
 from PIL import Image
 from pypdf import PdfReader, PdfWriter
 
 import subprocess
 import uuid
 import os
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
+import json
 
 app = FastAPI()
 
+# ✅ FIX JINJA (IMPORTANT)
 templates = Jinja2Templates(directory="templates")
+templates.env.cache = {}  # 🔥 prevents Render crash
 
 UPLOAD_DIR = "uploads"
 OUTPUT_DIR = "outputs"
@@ -31,9 +29,15 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
+# =============================
+# HOME
+# =============================
 @app.get("/")
 def home(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+    return templates.TemplateResponse(
+        "index.html",
+        {"request": request}
+    )
 
 
 # =============================
@@ -48,7 +52,6 @@ async def images_to_pdf(files: list[UploadFile] = File(...)):
     images = []
 
     for file in files:
-
         path = f"{UPLOAD_DIR}/{uuid.uuid4()}_{file.filename}"
 
         with open(path, "wb") as f:
@@ -58,7 +61,6 @@ async def images_to_pdf(files: list[UploadFile] = File(...)):
         images.append(img)
 
     output = f"{OUTPUT_DIR}/{uuid.uuid4()}_images.pdf"
-
     images[0].save(output, save_all=True, append_images=images[1:])
 
     return FileResponse(output, media_type="application/pdf", filename="images.pdf")
@@ -76,10 +78,8 @@ async def compress_pdf(file: UploadFile = File(...), level: str = Form(...)):
     with open(input_path, "wb") as f:
         f.write(await file.read())
 
-    gs_path = "gs"
-
     subprocess.run([
-        gs_path,
+        "gs",
         "-sDEVICE=pdfwrite",
         "-dCompatibilityLevel=1.4",
         f"-dPDFSETTINGS={level}",
@@ -94,17 +94,15 @@ async def compress_pdf(file: UploadFile = File(...), level: str = Form(...)):
 
 
 # =============================
-# MERGE PDF (WITH ORDER + SELECTION)
+# MERGE PDF
 # =============================
 @app.post("/merge-pdf")
 async def merge_pdf(files: list[UploadFile] = File(...), order: str = Form(...)):
 
-    import json
     order_list = json.loads(order)
 
     temp_paths = []
 
-    # Save files
     for file in files:
         path = f"{UPLOAD_DIR}/{uuid.uuid4()}_{file.filename}"
         with open(path, "wb") as f:
@@ -113,13 +111,9 @@ async def merge_pdf(files: list[UploadFile] = File(...), order: str = Form(...))
 
     writer = PdfWriter()
 
-    # order format: [{fileIndex: 0, pageIndex: 1}, ...]
     for item in order_list:
-        file_idx = item["fileIndex"]
-        page_idx = item["pageIndex"]
-
-        reader = PdfReader(temp_paths[file_idx])
-        writer.add_page(reader.pages[page_idx])
+        reader = PdfReader(temp_paths[item["fileIndex"]])
+        writer.add_page(reader.pages[item["pageIndex"]])
 
     output = f"{OUTPUT_DIR}/{uuid.uuid4()}_merged.pdf"
 
@@ -127,7 +121,8 @@ async def merge_pdf(files: list[UploadFile] = File(...), order: str = Form(...))
         writer.write(f)
 
     return FileResponse(output, media_type="application/pdf", filename="merged.pdf")
-    
+
+
 # =============================
 # SPLIT PDF
 # =============================
@@ -153,32 +148,6 @@ async def split_pdf(file: UploadFile = File(...), page: int = Form(...)):
         writer.write(f)
 
     return FileResponse(output, media_type="application/pdf", filename="split.pdf")
-
-
-# =============================
-# ROTATE PDF
-# =============================
-@app.post("/rotate-pdf")
-async def rotate_pdf(file: UploadFile = File(...), degree: int = Form(...)):
-
-    path = f"{UPLOAD_DIR}/{uuid.uuid4()}_{file.filename}"
-
-    with open(path, "wb") as f:
-        f.write(await file.read())
-
-    reader = PdfReader(path)
-    writer = PdfWriter()
-
-    for page in reader.pages:
-        page.rotate(degree)
-        writer.add_page(page)
-
-    output = f"{OUTPUT_DIR}/{uuid.uuid4()}_rotated.pdf"
-
-    with open(output, "wb") as f:
-        writer.write(f)
-
-    return FileResponse(output, media_type="application/pdf", filename="rotated.pdf")
 
 
 # =============================

@@ -2,7 +2,7 @@ services:
   - type: web
     name: mypdf
     env: python
-    buildCommand: pip install -r requirements.txt
+    buildCommand: |
+      pip install -r requirements.txt
+      apt-get update && apt-get install -y libreoffice
     startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
-UPLOAD_DIR = "/data/uploads"
-OUTPUT_DIR = "/data/outputs"

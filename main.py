@@ -3,7 +3,6 @@ from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from pdf2docx import Converter
-from docx2pdf import convert
 from PIL import Image
 from pypdf import PdfReader, PdfWriter
 
@@ -149,12 +148,29 @@ async def split_pdf(file: UploadFile = File(...), page: int = Form(...)):
 async def word_to_pdf(file: UploadFile = File(...)):
 
     input_path = f"{UPLOAD_DIR}/{uuid.uuid4()}_{file.filename}"
-    output_path = f"{OUTPUT_DIR}/{uuid.uuid4()}_converted.pdf"
+    output_dir = OUTPUT_DIR
 
     with open(input_path, "wb") as f:
         f.write(await file.read())
 
-    convert(input_path, output_path)
+    # Convert using LibreOffice
+    try:
+        subprocess.run([
+            "soffice",
+            "--headless",
+            "--convert-to", "pdf",
+            "--outdir", output_dir,
+            input_path
+        ], check=True)
+    except Exception as e:
+        raise HTTPException(500, f"Conversion failed: {str(e)}")
+
+    # Find converted file
+    base_name = os.path.splitext(os.path.basename(input_path))[0]
+    output_path = os.path.join(output_dir, base_name + ".pdf")
+
+    if not os.path.exists(output_path):
+        raise HTTPException(500, "Conversion failed - file not created")
 
     return FileResponse(output_path, media_type="application/pdf", filename="converted.pdf")
 

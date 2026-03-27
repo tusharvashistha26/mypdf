@@ -1,9 +1,9 @@
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request
-from fastapi.responses import FileResponse
-from fastapi.templating import Jinja2Templates
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from pdf2docx import Converter
+from docx2pdf import convert
 from PIL import Image
 from pypdf import PdfReader, PdfWriter
 
@@ -14,15 +14,6 @@ import json
 
 app = FastAPI()
 
-# =============================
-# 🔥 JINJA FIX (VERY IMPORTANT)
-# =============================
-templates = Jinja2Templates(directory="templates")
-templates.env.cache = {}   # prevents Render Jinja crash
-
-# =============================
-# FOLDERS
-# =============================
 UPLOAD_DIR = "uploads"
 OUTPUT_DIR = "outputs"
 
@@ -31,12 +22,14 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
+
 # =============================
-# HOME
+# HOME (🔥 NO JINJA)
 # =============================
-@app.get("/")
-async def home(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+@app.get("/", response_class=HTMLResponse)
+def home():
+    with open("templates/index.html", "r", encoding="utf-8") as f:
+        return f.read()
 
 
 # =============================
@@ -45,7 +38,7 @@ async def home(request: Request):
 @app.post("/images-to-pdf")
 async def images_to_pdf(files: list[UploadFile] = File(...)):
 
-    if not files:
+    if len(files) == 0:
         raise HTTPException(400, "No images uploaded")
 
     images = []
@@ -60,14 +53,13 @@ async def images_to_pdf(files: list[UploadFile] = File(...)):
         images.append(img)
 
     output = f"{OUTPUT_DIR}/{uuid.uuid4()}_images.pdf"
-
     images[0].save(output, save_all=True, append_images=images[1:])
 
     return FileResponse(output, media_type="application/pdf", filename="images.pdf")
 
 
 # =============================
-# COMPRESS PDF (Ghostscript)
+# COMPRESS PDF
 # =============================
 @app.post("/compress-pdf")
 async def compress_pdf(file: UploadFile = File(...), level: str = Form(...)):
@@ -78,20 +70,17 @@ async def compress_pdf(file: UploadFile = File(...), level: str = Form(...)):
     with open(input_path, "wb") as f:
         f.write(await file.read())
 
-    try:
-        subprocess.run([
-            "gs",
-            "-sDEVICE=pdfwrite",
-            "-dCompatibilityLevel=1.4",
-            f"-dPDFSETTINGS={level}",
-            "-dNOPAUSE",
-            "-dQUIET",
-            "-dBATCH",
-            f"-sOutputFile={output_path}",
-            input_path
-        ], check=True)
-    except Exception:
-        raise HTTPException(500, "Compression failed (Ghostscript issue)")
+    subprocess.run([
+        "gs",
+        "-sDEVICE=pdfwrite",
+        "-dCompatibilityLevel=1.4",
+        f"-dPDFSETTINGS={level}",
+        "-dNOPAUSE",
+        "-dQUIET",
+        "-dBATCH",
+        f"-sOutputFile={output_path}",
+        input_path
+    ])
 
     return FileResponse(output_path, media_type="application/pdf", filename="compressed.pdf")
 
@@ -103,6 +92,7 @@ async def compress_pdf(file: UploadFile = File(...), level: str = Form(...)):
 async def merge_pdf(files: list[UploadFile] = File(...), order: str = Form(...)):
 
     order_list = json.loads(order)
+
     temp_paths = []
 
     for file in files:
@@ -153,30 +143,18 @@ async def split_pdf(file: UploadFile = File(...), page: int = Form(...)):
 
 
 # =============================
-# WORD → PDF (FIXED FOR RENDER)
+# WORD → PDF
 # =============================
 @app.post("/word-to-pdf")
 async def word_to_pdf(file: UploadFile = File(...)):
 
     input_path = f"{UPLOAD_DIR}/{uuid.uuid4()}_{file.filename}"
+    output_path = f"{OUTPUT_DIR}/{uuid.uuid4()}_converted.pdf"
 
     with open(input_path, "wb") as f:
         f.write(await file.read())
 
-    try:
-        subprocess.run([
-            "libreoffice",
-            "--headless",
-            "--convert-to", "pdf",
-            input_path,
-            "--outdir", OUTPUT_DIR
-        ], check=True)
-    except Exception:
-        raise HTTPException(500, "LibreOffice conversion failed")
-
-    # find generated file
-    filename = os.path.splitext(os.path.basename(input_path))[0] + ".pdf"
-    output_path = os.path.join(OUTPUT_DIR, filename)
+    convert(input_path, output_path)
 
     return FileResponse(output_path, media_type="application/pdf", filename="converted.pdf")
 

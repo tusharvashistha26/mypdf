@@ -148,33 +148,38 @@ async def split_pdf(file: UploadFile = File(...), page: int = Form(...)):
 async def word_to_pdf(file: UploadFile = File(...)):
 
     input_path = f"{UPLOAD_DIR}/{uuid.uuid4()}_{file.filename}"
-    output_dir = OUTPUT_DIR
 
     with open(input_path, "wb") as f:
         f.write(await file.read())
 
-    # Convert using LibreOffice
     try:
-        subprocess.run([
+        result = subprocess.run([
             "soffice",
             "--headless",
             "--convert-to", "pdf",
-            "--outdir", output_dir,
+            "--outdir", OUTPUT_DIR,
             input_path
-        ], check=True)
+        ], capture_output=True, text=True)
+
+        if result.returncode != 0:
+            raise Exception(result.stderr)
+
     except Exception as e:
-        raise HTTPException(500, f"Conversion failed: {str(e)}")
+        raise HTTPException(500, f"LibreOffice error: {str(e)}")
 
-    # Find converted file
-    base_name = os.path.splitext(os.path.basename(input_path))[0]
-    output_path = os.path.join(output_dir, base_name + ".pdf")
+    # 🔥 Find actual output file (robust way)
+    files = os.listdir(OUTPUT_DIR)
+    pdf_files = [f for f in files if f.endswith(".pdf")]
 
-    if not os.path.exists(output_path):
-        raise HTTPException(500, "Conversion failed - file not created")
+    if not pdf_files:
+        raise HTTPException(500, "PDF not generated")
 
-    return FileResponse(output_path, media_type="application/pdf", filename="converted.pdf")
+    latest_file = max(
+        [os.path.join(OUTPUT_DIR, f) for f in pdf_files],
+        key=os.path.getctime
+    )
 
-
+    return FileResponse(latest_file, media_type="application/pdf", filename="converted.pdf")
 # =============================
 # PDF → WORD
 # =============================

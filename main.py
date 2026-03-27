@@ -153,33 +153,34 @@ async def word_to_pdf(file: UploadFile = File(...)):
         f.write(await file.read())
 
     try:
-        result = subprocess.run([
+        process = subprocess.run([
             "soffice",
             "--headless",
-            "--convert-to", "pdf",
+            "--convert-to", "pdf:writer_pdf_Export",
             "--outdir", OUTPUT_DIR,
             input_path
-        ], capture_output=True, text=True)
+        ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-        if result.returncode != 0:
-            raise Exception(result.stderr)
+        print("STDOUT:", process.stdout.decode())
+        print("STDERR:", process.stderr.decode())
+
+        if process.returncode != 0:
+            raise Exception("LibreOffice conversion failed")
 
     except Exception as e:
-        raise HTTPException(500, f"LibreOffice error: {str(e)}")
+        raise HTTPException(500, f"Conversion error: {str(e)}")
 
-    # 🔥 Find actual output file (robust way)
-    files = os.listdir(OUTPUT_DIR)
-    pdf_files = [f for f in files if f.endswith(".pdf")]
+    base_name = os.path.splitext(os.path.basename(input_path))[0]
+    output_path = os.path.join(OUTPUT_DIR, base_name + ".pdf")
 
-    if not pdf_files:
-        raise HTTPException(500, "PDF not generated")
+    if not os.path.exists(output_path) or os.path.getsize(output_path) == 0:
+        raise HTTPException(500, "PDF not generated properly")
 
-    latest_file = max(
-        [os.path.join(OUTPUT_DIR, f) for f in pdf_files],
-        key=os.path.getctime
+    return FileResponse(
+        output_path,
+        media_type="application/pdf",
+        filename="converted.pdf"
     )
-
-    return FileResponse(latest_file, media_type="application/pdf", filename="converted.pdf")
 # =============================
 # PDF → WORD
 # =============================

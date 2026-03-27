@@ -2,7 +2,10 @@ services:
   - type: web
     name: mypdf
     env: python
+
     buildCommand: |
+      apt-get update
+      apt-get install -y libreoffice
       pip install -r requirements.txt
-      apt-get update && apt-get install -y libreoffice
+
     startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT

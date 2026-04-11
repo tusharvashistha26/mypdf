@@ -42,7 +42,10 @@ LIBRE_CMD = (
 # =============================
 @app.get("/")
 def home(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+    try:
+        return templates.TemplateResponse(request=request, name="index.html")
+    except TypeError:
+        return templates.TemplateResponse("index.html", {"request": request})
 
 
 # =============================

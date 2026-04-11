@@ -1,41 +1,82 @@
-console.log("APP JS LOADED ✅")
-
 let filesList = []
+/* ===============================
+   GLOBAL LOADER CONTROL
+================================ */
+function showLoader() {
+    const loader = document.getElementById("globalLoader")
+    const tick = document.getElementById("successTick")
 
+    if (loader) loader.classList.remove("hidden")
+    if (tick) tick.classList.add("hidden")
+}
+
+function showSuccess() {
+    const tick = document.getElementById("successTick")
+
+    if (tick) {
+        tick.classList.remove("hidden")
+
+        setTimeout(() => {
+            hideLoader()
+        }, 1200)
+    }
+}
+
+function hideLoader() {
+    const loader = document.getElementById("globalLoader")
+    if (loader) loader.classList.add("hidden")
+}
+
+/* ===============================
+   INIT (SIDEBAR HIDDEN)
+================================ */
+window.onload = () => {
+    document.getElementById("sidebar")?.classList.add("closed")
+
+    // ✅ FORCE RESET LOADER
+    const loader = document.getElementById("globalLoader")
+    const tick = document.getElementById("successTick")
+
+    if (loader) loader.classList.add("hidden")
+    if (tick) tick.classList.add("hidden")
+}
+
+/* ===============================
+   NAV
+================================ */
 function toggleSidebar() {
-    let sidebar = document.getElementById("sidebar")
-    let overlay = document.getElementById("overlay")
+    const sidebar = document.getElementById("sidebar")
+    const main = document.querySelector(".main")
 
-    if (sidebar) sidebar.classList.toggle("open")
-    if (overlay) overlay.classList.toggle("active")
+    sidebar.classList.toggle("closed")
+    main.classList.toggle("full")
 }
 
 function showTool(id) {
-
     document.querySelectorAll(".tool").forEach(t => t.classList.add("hidden"))
 
     let el = document.getElementById(id)
     if (el) el.classList.remove("hidden")
 
-    // auto close sidebar
-    let sidebar = document.getElementById("sidebar")
-    let overlay = document.getElementById("overlay")
-
-    if (sidebar) sidebar.classList.remove("open")
-    if (overlay) overlay.classList.remove("active")
+    const queue = document.getElementById("queueSection")
+    queue.classList.toggle("hidden", id !== "dashboard")
 }
 
+/* ===============================
+   ERROR
+================================ */
+function showError(msg) {
+    showToast(msg, "error")
+}
 
-/* ================= IMAGE PREVIEW ================= */
-
+/* ===============================
+   IMAGE PREVIEW
+================================ */
 const imageInput = document.getElementById("imageInput")
 
 if (imageInput) {
     imageInput.addEventListener("change", function () {
-
         const preview = document.getElementById("preview")
-        if (!preview) return
-
         preview.innerHTML = ""
 
         filesList = [...this.files]
@@ -46,356 +87,320 @@ if (imageInput) {
             preview.appendChild(img)
         })
 
-        if (typeof Sortable !== "undefined") {
-            new Sortable(preview, { animation: 150 })
-        }
+        new Sortable(preview, { animation: 150 })
     })
 }
 
+function showToast(message, type = "success") {
+    const container = document.getElementById("toastContainer")
 
-/* ================= DRAG DROP ================= */
+    let div = document.createElement("div")
+    div.className = `toast ${type}`
+    div.innerText = message
 
-const dropZone = document.getElementById("dropZone")
+    container.appendChild(div)
 
-if (dropZone && imageInput) {
-
-    dropZone.addEventListener("click", () => imageInput.click())
-
-    dropZone.addEventListener("dragover", e => {
-        e.preventDefault()
-        dropZone.classList.add("dragover")
-    })
-
-    dropZone.addEventListener("dragleave", () => {
-        dropZone.classList.remove("dragover")
-    })
-
-    dropZone.addEventListener("drop", e => {
-        e.preventDefault()
-        dropZone.classList.remove("dragover")
-
-        imageInput.files = e.dataTransfer.files
-        imageInput.dispatchEvent(new Event("change"))
-    })
+    setTimeout(() => div.remove(), 3000)
 }
 
+/* ===============================
+   QUEUE
+================================ */
+function addJobToUI(jobId, label) {
+    const list = document.getElementById("jobList")
+    if (!list) return
 
-/* ================= PDF PREVIEW (MERGE) ================= */
+    let div = document.createElement("div")
+    div.className = "job-item"
+    div.id = jobId
 
-const mergeInput = document.getElementById("mergeFiles")
+    div.innerHTML = `
+        <strong>${label}</strong><br>
+        <span class="status"><span class="loader"></span> Processing...</span>
+    `
 
-if (mergeInput) {
+    list.prepend(div)
+}
 
-    mergeInput.addEventListener("change", async function () {
+async function pollJob(jobId, label) {
+    addJobToUI(jobId, label)
 
-        const container = document.getElementById("pdfPreview")
-        if (!container) return
+    let interval = setInterval(async () => {
+        showLoader()
+        let res = await fetch(`/job-status/${jobId}`)
+        let data = await res.json()
 
-        container.innerHTML = ""
+        let el = document.getElementById(jobId)
+        if (!el) return
 
-        let fileIndex = 0
+        let statusEl = el.querySelector(".status")
 
-        for (let file of this.files) {
+        if (data.status === "completed") {
+            showSuccess()
+            clearInterval(interval)
 
-            let url = URL.createObjectURL(file)
-            let pdf = await pdfjsLib.getDocument(url).promise
+            statusEl.innerText = "✅ Done"
 
-            for (let i = 1; i <= pdf.numPages; i++) {
+            // 🔥 IMAGE → PDF (WITH PREVIEW)
+            if (label === "Images → PDF") {
+                const frame = document.getElementById("imageResultFrame")
+                const previewBox = document.getElementById("imageResultPreview")
+                const btn = document.getElementById("imageDownloadBtn")
 
-                let page = await pdf.getPage(i)
+                frame.src = data.download_url
+                previewBox.classList.remove("hidden")
 
-                let canvas = document.createElement("canvas")
-                let ctx = canvas.getContext("2d")
-
-                let viewport = page.getViewport({ scale: 0.4 })
-
-                canvas.width = viewport.width
-                canvas.height = viewport.height
-
-                await page.render({
-                    canvasContext: ctx,
-                    viewport
-                }).promise
-
-                let wrapper = document.createElement("div")
-                wrapper.className = "pdf-item"
-                wrapper.dataset.fileIndex = fileIndex
-                wrapper.dataset.pageIndex = i - 1
-                wrapper.dataset.selected = "true"
-
-                wrapper.onclick = () => {
-                    let selected = wrapper.dataset.selected === "true"
-                    wrapper.dataset.selected = (!selected).toString()
-                    wrapper.classList.toggle("selected")
-                }
-
-                let label = document.createElement("p")
-                label.innerText = `Page ${i}`
-
-                wrapper.appendChild(canvas)
-                wrapper.appendChild(label)
-
-                container.appendChild(wrapper)
+                btn.href = data.download_url
+                btn.classList.remove("hidden")
             }
 
-            fileIndex++
+            // 🔥 OTHER TOOLS (ONLY DOWNLOAD BUTTON)
+            if (label === "Compress PDF") {
+                showDownload("compressDownloadBtn", data.download_url)
+            }
+
+            if (label === "Merge PDFs") {
+                showDownload("mergeDownloadBtn", data.download_url)
+            }
+
+            if (label === "Split PDF") {
+                showDownload("splitDownloadBtn", data.download_url)
+            }
+
+            if (label === "Word → PDF") {
+                showDownload("wordDownloadBtn", data.download_url)
+            }
+
+            if (label === "PDF → Word") {
+                showDownload("pdfWordDownloadBtn", data.download_url)
+            }
+
+            showToast("File ready!", "success")
         }
 
-        if (typeof Sortable !== "undefined") {
-            new Sortable(container, { animation: 150 })
+        if (data.status === "failed") {
+            hideLoader()
+            clearInterval(interval)
+
+            statusEl.innerText = "❌ Failed"
+            showToast("Error: " + (data.message || "Something went wrong"), "error")
         }
-    })
+
+    }, 2000)
 }
 
+/* ===============================
+   DOWNLOAD HELPER
+================================ */
+function showDownload(id, url) {
+    const btn = document.getElementById(id)
+    if (!btn) return
 
-/* ================= MERGE ================= */
-
-async function mergePDF() {
-
-    const input = document.getElementById("mergeFiles")
-
-    if (!input || input.files.length === 0) {
-        alert("Select PDFs")
-        return
-    }
-
-    const container = document.getElementById("pdfPreview")
-    const pages = container.querySelectorAll(".pdf-item")
-
-    let order = []
-
-    pages.forEach(el => {
-        if (el.dataset.selected === "true") {
-            order.push({
-                fileIndex: parseInt(el.dataset.fileIndex),
-                pageIndex: parseInt(el.dataset.pageIndex)
-            })
-        }
-    })
-
-    if (order.length === 0) {
-        alert("Select at least one page")
-        return
-    }
-
-    const formData = new FormData()
-
-    for (let file of input.files) {
-        formData.append("files", file)
-    }
-
-    formData.append("order", JSON.stringify(order))
-
-    document.getElementById("loader").classList.remove("hidden")
-
-    const res = await fetch("/merge-pdf", {
-        method: "POST",
-        body: formData
-    })
-
-    const blob = await res.blob()
-
-    document.getElementById("loader").classList.add("hidden")
-
-    let a = document.createElement("a")
-    a.href = URL.createObjectURL(blob)
-    a.download = "merged.pdf"
-    a.click()
+    btn.href = url
+    btn.classList.remove("hidden")
 }
 
+/* ===============================
+   THEME TOGGLE
+================================ */
+function toggleTheme() {
+    const body = document.body
 
-/* ================= IMAGE → PDF ================= */
+    body.classList.toggle("light")
 
+    // save preference
+    if (body.classList.contains("light")) {
+        localStorage.setItem("theme", "light")
+    } else {
+        localStorage.setItem("theme", "dark")
+    }
+}
+
+// LOAD SAVED THEME
+window.addEventListener("DOMContentLoaded", () => {
+    const saved = localStorage.getItem("theme")
+
+    if (saved === "light") {
+        document.body.classList.add("light")
+    }
+})
+/* ===============================
+   ACTIONS
+================================ */
 async function uploadImages() {
+    let input = document.getElementById("imageInput")
+    if (!input.files.length) return showError("Select images")
 
-    const input = document.getElementById("imageInput")
+    let formData = new FormData()
+    for (let f of input.files) formData.append("files", f)
 
-    if (!input || input.files.length === 0) {
-        alert("Select images")
-        return
+    try {
+        showLoader()
+        let res = await fetch("/enqueue/images-to-pdf", {
+            method: "POST",
+            body: formData
+        })
+
+        let data = await res.json()
+        pollJob(data.job_id, "Images → PDF")
+
+    } catch {
+        showError("Upload failed")
     }
-
-    const formData = new FormData()
-
-    for (let file of input.files) {
-        formData.append("files", file)
-    }
-
-    document.getElementById("loader").classList.remove("hidden")
-
-    const res = await fetch("/images-to-pdf", {
-        method: "POST",
-        body: formData
-    })
-
-    const blob = await res.blob()
-
-    document.getElementById("loader").classList.add("hidden")
-
-    let a = document.createElement("a")
-    a.href = URL.createObjectURL(blob)
-    a.download = "images.pdf"
-    a.click()
 }
-
-
-/* ================= COMPRESS ================= */
 
 async function compressPDF() {
+    let file = document.getElementById("compressFile").files[0]
+    if (!file) return showError("Select file")
 
-    const fileInput = document.getElementById("compressFile")
-    const level = document.getElementById("compressLevel").value
+    let formData = new FormData()
+    formData.append("file", file)
+    formData.append("level", document.getElementById("compressLevel").value)
 
-    if (!fileInput || fileInput.files.length === 0) {
-        alert("Select PDF")
-        return
+    try {
+        showLoader()
+        let res = await fetch("/enqueue/compress-pdf", {
+            method: "POST",
+            body: formData
+        })
+
+        let data = await res.json()
+        pollJob(data.job_id, "Compress PDF")
+
+    } catch {
+        showError("Compression failed")
     }
-
-    const formData = new FormData()
-    formData.append("file", fileInput.files[0])
-    formData.append("level", level)
-
-    document.getElementById("loader").classList.remove("hidden")
-
-    const res = await fetch("/compress-pdf", {
-        method: "POST",
-        body: formData
-    })
-
-    const blob = await res.blob()
-
-    document.getElementById("loader").classList.add("hidden")
-
-    let a = document.createElement("a")
-    a.href = URL.createObjectURL(blob)
-    a.download = "compressed.pdf"
-    a.click()
 }
 
+async function mergePDF() {
+    const input = document.getElementById("mergeFiles")
+    if (!input.files.length) return showError("Select PDFs")
 
-/* ================= SPLIT ================= */
+    let formData = new FormData()
+    for (let f of input.files) formData.append("files", f)
+
+    try {
+        showLoader()
+        let res = await fetch("/enqueue/merge-pdf", {
+            method: "POST",
+            body: formData
+        })
+
+        let data = await res.json()
+        pollJob(data.job_id, "Merge PDFs")
+
+    } catch {
+        showError("Merge failed")
+    }
+}
 
 async function splitPDF() {
+    let file = document.getElementById("splitFile").files[0]
+    let page = document.getElementById("splitPage").value
 
-    const file = document.getElementById("splitFile").files[0]
-    const page = document.getElementById("splitPage").value
+    if (!file || !page) return showError("Select file & page")
 
-    if (!file || !page) {
-        alert("Select file and page")
-        return
-    }
-
-    const formData = new FormData()
+    let formData = new FormData()
     formData.append("file", file)
     formData.append("page", page)
 
-    document.getElementById("loader").classList.remove("hidden")
+    try {
+        showLoader()
+        let res = await fetch("/enqueue/split-pdf", {
+            method: "POST",
+            body: formData
+        })
 
-    const res = await fetch("/split-pdf", {
-        method: "POST",
-        body: formData
-    })
+        let data = await res.json()
+        pollJob(data.job_id, "Split PDF")
 
-    const blob = await res.blob()
-
-    document.getElementById("loader").classList.add("hidden")
-
-    let a = document.createElement("a")
-    a.href = URL.createObjectURL(blob)
-    a.download = "split.pdf"
-    a.click()
+    } catch {
+        showError("Split failed")
+    }
 }
-
-
-/* ================= WORD ================= */
 
 async function convertWord() {
+    let file = document.getElementById("wordFile").files[0]
+    if (!file) return showError("Select file")
 
-    const file = document.getElementById("wordFile").files[0]
-
-    if (!file) {
-        alert("Select Word file")
-        return
-    }
-
-    const formData = new FormData()
+    let formData = new FormData()
     formData.append("file", file)
 
-    document.getElementById("loader").classList.remove("hidden")
+    try {
+        showLoader()
+        let res = await fetch("/enqueue/word-to-pdf", {
+            method: "POST",
+            body: formData
+        })
 
-    const res = await fetch("/word-to-pdf", {
-        method: "POST",
-        body: formData
-    })
+        let data = await res.json()
+        pollJob(data.job_id, "Word → PDF")
 
-    const blob = await res.blob()
-
-    document.getElementById("loader").classList.add("hidden")
-
-    let a = document.createElement("a")
-    a.href = URL.createObjectURL(blob)
-    a.download = "converted.pdf"
-    a.click()
+    } catch {
+        showError("Conversion failed")
+    }
 }
-
-
-/* ================= PDF → WORD ================= */
 
 async function convertPDF() {
+    let file = document.getElementById("pdfWordFile").files[0]
+    if (!file) return showError("Select file")
 
-    const file = document.getElementById("pdfWordFile").files[0]
-
-    if (!file) {
-        alert("Select PDF")
-        return
-    }
-
-    const formData = new FormData()
+    let formData = new FormData()
     formData.append("file", file)
 
-    document.getElementById("loader").classList.remove("hidden")
+    try {
+        showLoader()
+        let res = await fetch("/enqueue/pdf-to-word", {
+            method: "POST",
+            body: formData
+        })
 
-    const res = await fetch("/pdf-to-word", {
-        method: "POST",
-        body: formData
-    })
+        let data = await res.json()
+        pollJob(data.job_id, "PDF → Word")
 
-    const blob = await res.blob()
-
-    document.getElementById("loader").classList.add("hidden")
-
-    let a = document.createElement("a")
-    a.href = URL.createObjectURL(blob)
-    a.download = "converted.docx"
-    a.click()
+    } catch {
+        showError("Conversion failed")
+    }
 }
 
-
-/* ================= CLEAR ================= */
-
+/* ===============================
+   CLEAR
+================================ */
 function clearImages() {
     document.getElementById("imageInput").value = ""
     document.getElementById("preview").innerHTML = ""
+
+    document.getElementById("imageResultPreview").classList.add("hidden")
+    document.getElementById("imageDownloadBtn").classList.add("hidden")
 }
 
 function clearMerge() {
     document.getElementById("mergeFiles").value = ""
-    document.getElementById("pdfPreview").innerHTML = ""
+    hideDownload("mergeDownloadBtn")
 }
 
 function clearCompress() {
     document.getElementById("compressFile").value = ""
+    hideDownload("compressDownloadBtn")
 }
 
 function clearSplit() {
     document.getElementById("splitFile").value = ""
     document.getElementById("splitPage").value = ""
+    hideDownload("splitDownloadBtn")
 }
 
 function clearWord() {
     document.getElementById("wordFile").value = ""
+    hideDownload("wordDownloadBtn")
 }
 
 function clearPDFWord() {
     document.getElementById("pdfWordFile").value = ""
+    hideDownload("pdfWordDownloadBtn")
+}
+
+function hideDownload(id) {
+    const btn = document.getElementById(id)
+    if (btn) btn.classList.add("hidden")
 }

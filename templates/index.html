@@ -5,26 +5,31 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>MyPDF</title>
 
-    <link rel="stylesheet" href="static/style.css">
-    <link rel="stylesheet" href="static/loader.css">
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/loader.css">
 
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
 
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 
-    <script src="static/app.js" defer></script>
+    <script src="/static/app.js" defer></script>
 </head>
 
 <body>
 
     <!-- NAVBAR -->
     <div class="navbar glass">
+
         <button class="menu-btn" onclick="toggleSidebar()">☰</button>
-        <h2>MyPDF</h2>
-        <div></div>
+
+        <h2 class="logo">MyPDF</h2>
+
+        <div class="nav-actions">
+            <button onclick="toggleTheme()">🌙</button>
+            <button onclick="showTool('dashboard')">🏠</button>
+        </div>
+
     </div>
-    <div id="overlay" onclick="toggleSidebar()"></div>
 
     <div class="app">
 
@@ -32,74 +37,45 @@
         <div class="sidebar glass" id="sidebar">
             <h3>📄 Tools</h3>
 
-            <button onclick="showTool('dashboard')">🏠 Dashboard</button>
-            <button onclick="showTool('imagepdf')">📷 Images → PDF</button>
-            <button onclick="showTool('compress')">🗜 Compress PDF</button>
-            <button onclick="showTool('merge')">📑 Merge PDFs</button>
-            <button onclick="showTool('split')">✂ Split PDF</button>
-            <button onclick="showTool('wordpdf')">📄 Word → PDF</button>
-            <button onclick="showTool('pdftoword')">📝 PDF → Word</button>
+            <button onclick="showTool('dashboard')">Dashboard</button>
+            <button onclick="showTool('imagepdf')">Images → PDF</button>
+            <button onclick="showTool('compress')">Compress</button>
+            <button onclick="showTool('merge')">Merge</button>
+            <button onclick="showTool('split')">Split</button>
+            <button onclick="showTool('wordpdf')">Word → PDF</button>
+            <button onclick="showTool('pdftoword')">PDF → Word</button>
         </div>
 
         <!-- MAIN -->
         <div class="main">
 
-            <div id="loader" class="loader hidden"></div>
+            <!-- QUEUE -->
+            <div id="queueSection" class="glass card">
+                <h3>⚙️ Processing Queue</h3>
+                <div id="jobList"></div>
+            </div>
 
             <!-- DASHBOARD -->
             <div id="dashboard" class="tool">
-
-                <h1>PDF Tools</h1>
+                <h2>PDF Tools</h2>
 
                 <div class="tool-grid">
-
-                    <div class="tool-card glass" onclick="showTool('imagepdf')">
-                        <span>📷</span>
-                        <h3>Images → PDF</h3>
-                        <p>Convert images into PDF</p>
-                    </div>
-
-                    <div class="tool-card glass" onclick="showTool('compress')">
-                        <span>🗜</span>
-                        <h3>Compress PDF</h3>
-                        <p>Reduce PDF size</p>
-                    </div>
-
-                    <div class="tool-card glass" onclick="showTool('merge')">
-                        <span>📑</span>
-                        <h3>Merge PDFs</h3>
-                        <p>Combine files</p>
-                    </div>
-
-                    <div class="tool-card glass" onclick="showTool('split')">
-                        <span>✂</span>
-                        <h3>Split PDF</h3>
-                        <p>Extract pages</p>
-                    </div>
-
-                    <div class="tool-card glass" onclick="showTool('wordpdf')">
-                        <span>📄</span>
-                        <h3>Word → PDF</h3>
-                        <p>DOCX to PDF</p>
-                    </div>
-
-                    <div class="tool-card glass" onclick="showTool('pdftoword')">
-                        <span>📝</span>
-                        <h3>PDF → Word</h3>
-                        <p>PDF to DOCX</p>
-                    </div>
-
+                    <div class="tool-card glass" onclick="showTool('imagepdf')">📷 Images → PDF</div>
+                    <div class="tool-card glass" onclick="showTool('compress')">🗜 Compress</div>
+                    <div class="tool-card glass" onclick="showTool('merge')">📑 Merge</div>
+                    <div class="tool-card glass" onclick="showTool('split')">✂ Split</div>
+                    <div class="tool-card glass" onclick="showTool('wordpdf')">📄 Word → PDF</div>
+                    <div class="tool-card glass" onclick="showTool('pdftoword')">📝 PDF → Word</div>
                 </div>
-
             </div>
 
             <!-- IMAGE → PDF -->
             <div id="imagepdf" class="tool hidden">
-                <div class="card glass">
+                <div class="glass card">
                     <h2>Images → PDF</h2>
 
-                    <div class="drop-zone" id="dropZone">
-                        <p>Drag & Drop Images or Click to Upload</p>
+                    <div class="drop-zone">
+                        Drag & Drop Images
                         <input type="file" id="imageInput" multiple>
                     </div>
 
@@ -107,14 +83,23 @@
 
                     <div class="action-buttons">
                         <button onclick="uploadImages()">Convert</button>
-                        <button class="discard-btn" onclick="clearImages()">Discard</button>
+                        <button onclick="clearImages()">Clear</button>
+
+                        <!-- DOWNLOAD -->
+                        <a id="imageDownloadBtn" class="download-btn hidden" target="_blank">⬇ Download</a>
+                    </div>
+
+                    <!-- RESULT PREVIEW -->
+                    <div id="imageResultPreview" class="hidden">
+                        <h3>Preview</h3>
+                        <iframe id="imageResultFrame" style="width:100%;height:400px;border:none;"></iframe>
                     </div>
                 </div>
             </div>
 
             <!-- COMPRESS -->
             <div id="compress" class="tool hidden">
-                <div class="card glass">
+                <div class="glass card">
                     <h2>Compress PDF</h2>
 
                     <input type="file" id="compressFile">
@@ -127,30 +112,32 @@
 
                     <div class="action-buttons">
                         <button onclick="compressPDF()">Compress</button>
-                        <button class="discard-btn" onclick="clearCompress()">Discard</button>
+                        <button onclick="clearCompress()">Clear</button>
+
+                        <a id="compressDownloadBtn" class="download-btn hidden" target="_blank">⬇ Download</a>
                     </div>
                 </div>
             </div>
 
             <!-- MERGE -->
             <div id="merge" class="tool hidden">
-                <div class="card glass">
+                <div class="glass card">
                     <h2>Merge PDFs</h2>
 
                     <input type="file" id="mergeFiles" multiple>
 
-                    <div id="pdfPreview"></div>
-
                     <div class="action-buttons">
                         <button onclick="mergePDF()">Merge</button>
-                        <button class="discard-btn" onclick="clearMerge()">Discard</button>
+                        <button onclick="clearMerge()">Clear</button>
+
+                        <a id="mergeDownloadBtn" class="download-btn hidden" target="_blank">⬇ Download</a>
                     </div>
                 </div>
             </div>
 
             <!-- SPLIT -->
             <div id="split" class="tool hidden">
-                <div class="card glass">
+                <div class="glass card">
                     <h2>Split PDF</h2>
 
                     <input type="file" id="splitFile">
@@ -158,42 +145,67 @@
 
                     <div class="action-buttons">
                         <button onclick="splitPDF()">Extract</button>
-                        <button class="discard-btn" onclick="clearSplit()">Discard</button>
+                        <button onclick="clearSplit()">Clear</button>
+
+                        <a id="splitDownloadBtn" class="download-btn hidden" target="_blank">⬇ Download</a>
                     </div>
                 </div>
             </div>
 
-            <!-- WORD → PDF -->
+            <!-- WORD -->
             <div id="wordpdf" class="tool hidden">
-                <div class="card glass">
+                <div class="glass card">
                     <h2>Word → PDF</h2>
 
                     <input type="file" id="wordFile">
 
                     <div class="action-buttons">
                         <button onclick="convertWord()">Convert</button>
-                        <button class="discard-btn" onclick="clearWord()">Discard</button>
+                        <button onclick="clearWord()">Clear</button>
+
+                        <a id="wordDownloadBtn" class="download-btn hidden" target="_blank">⬇ Download</a>
                     </div>
                 </div>
             </div>
 
             <!-- PDF → WORD -->
             <div id="pdftoword" class="tool hidden">
-                <div class="card glass">
+                <div class="glass card">
                     <h2>PDF → Word</h2>
 
                     <input type="file" id="pdfWordFile">
 
                     <div class="action-buttons">
                         <button onclick="convertPDF()">Convert</button>
-                        <button class="discard-btn" onclick="clearPDFWord()">Discard</button>
+                        <button onclick="clearPDFWord()">Clear</button>
+
+                        <a id="pdfWordDownloadBtn" class="download-btn hidden" target="_blank">⬇ Download</a>
                     </div>
                 </div>
             </div>
 
         </div>
-
     </div>
 
+    <!-- FOOTER -->
+    <footer class="footer glass">
+        <div class="footer-container">
+            <div>
+                <h3>MyPDF</h3>
+                <p>Fast • Secure • Free</p>
+            </div>
+
+            <div>
+                <p>© 2026</p>
+            </div>
+        </div>
+    </footer>
+    <div id="toastContainer"></div>
+    <!-- GLOBAL LOADER -->
+    <div id="globalLoader" class="hidden">
+        <div class="loader"></div>
+        <div id="successTick" class="hidden">Loading...</div>
+    </div>
 </body>
+
 </html>

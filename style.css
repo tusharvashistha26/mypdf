@@ -1,0 +1,585 @@
+* {
+    box-sizing: border-box;
+}
+
+/* =======================
+   BASE
+======================= */
+body {
+    overflow-x: hidden;
+    margin: 0;
+    font-family: 'Poppins', sans-serif;
+    background: linear-gradient(135deg, #4c1d95, #3f138a);
+    color: white;
+}
+
+/* =======================
+   LIGHT MODE
+======================= */
+body.light {
+    background: linear-gradient(135deg, #f3f4f6, #e5e7eb);
+    color: #111;
+}
+
+body.light .glass {
+    background: rgba(255, 255, 255, 0.7);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+body.light .sidebar {
+    background: #ffffff;
+    color: #111;
+}
+
+body.light button {
+    background: linear-gradient(135deg, #2563eb, #3b82f6);
+}
+
+body.light .card {
+    background: rgba(255, 255, 255, 0.8);
+}
+
+body.light .job-item {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+h2 {
+    display: block;
+    font-size: 1.5em;
+    margin-block-start: 0.83em;
+    margin-block-end: 0.83em;
+    margin-inline-start: 0px;
+    margin-inline-end: 0px;
+    font-weight: bold;
+    unicode-bidi: isolate;
+    text-align: center;
+}
+
+/* =======================
+   GLASS EFFECT
+======================= */
+.glass {
+    background: rgba(255, 255, 255, 0.04);
+    backdrop-filter: blur(14px);
+    border-radius: 18px;
+    border: 1px solid rgba(255, 255, 255, 0.041);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
+}
+
+/* =======================
+   NAVBAR
+======================= */
+/* NAVBAR FIX */
+.navbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+
+    height: 60px;
+    padding: 10px 15px;
+    backdrop-filter: blur(12px);
+    background: rgba(0, 0, 0, 0.2);
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    box-sizing: border-box;
+    z-index: 1000;
+}
+
+/* LOGO CENTER */
+.logo {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    margin: 0;
+    font-size: 18px;
+}
+
+/* RIGHT SIDE */
+.nav-actions {
+    display: flex;
+    gap: 8px;
+}
+
+
+
+.menu-btn {
+    background: rgba(255, 255, 255, 0.078);
+    border: none;
+    color: white;
+    padding: 10px 14px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.menu-btn:hover {
+    background: rgba(255, 255, 255, 0.114);
+}
+
+/* =======================
+   LAYOUT
+======================= */
+
+.main {
+    width: 100%;
+    display: grid;
+    align-items: center;
+    padding: 120px 40px 40px;
+}
+
+.main.full {
+    padding-left: 30px;
+}
+
+/* =======================
+   SIDEBAR
+======================= */
+.sidebar {
+    position: fixed;
+    top: 85px;
+    left: 0px;
+    width: 240px;
+    height: calc(100% - 60px);
+    z-index: 999;
+    background: rgb(53, 33, 97);
+    padding: 20px;
+    transition: 0.3s;
+}
+
+.sidebar.closed {
+    transform: translateX(-100%);
+}
+
+/* 
+.sidebar.open {
+    left: 15px;
+} */
+
+.sidebar button {
+    display: block;
+    width: 100%;
+    margin: 12px 0;
+    background: rgba(255, 255, 255, 0.034);
+    border: none;
+    color: white;
+    text-align: left;
+    padding: 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.sidebar button:hover {
+    background: rgba(255, 255, 255, 0.064);
+    transform: translateX(5px);
+}
+
+/* =======================
+   CARDS
+======================= */
+.card {
+    width: 100%;
+    max-width: 700px;
+    /* 🔥 controls card size */
+    margin: 0 auto 20px;
+    /* center horizontally */
+
+    padding: 25px;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.06);
+
+    transition: 0.2s;
+}
+
+.card:hover {
+    transform: translateY(-3px);
+}
+
+/* =======================
+   TOOL GRID
+======================= */
+.tool-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 30px;
+    width: 100%;
+}
+
+/* =======================
+   TOOL CARDS
+======================= */
+.tool-card {
+    width: 260px;
+    height: 140px;
+
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.047);
+    backdrop-filter: blur(20px);
+
+    transition: all 0.3s ease;
+}
+
+.tool-card span {
+    font-size: 32px;
+    display: block;
+    margin-bottom: 10px;
+}
+
+.tool-card h3 {
+    margin: 5px 0;
+    font-weight: 600;
+}
+
+.tool-card p {
+    font-size: 13px;
+    opacity: 0.7;
+}
+
+.tool-card:hover {
+    transform: translateY(-10px) scale(1.05);
+    background: rgba(255, 255, 255, 0.051);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+}
+
+/* =======================
+   INPUTS
+======================= */
+input,
+select {
+    width: 100%;
+    margin: 10px 0;
+    padding: 12px;
+    border-radius: 10px;
+    border: none;
+    outline: none;
+}
+
+/* =======================
+   DROP ZONE
+======================= */
+.drop-zone {
+    border: 2px dashed rgba(255, 255, 255, 0.081);
+    padding: 50px;
+    text-align: center;
+    margin: 20px 0;
+    border-radius: 15px;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.drop-zone:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* =======================
+   BUTTONS
+======================= */
+button {
+    background: linear-gradient(135deg, #2e00e6, #2f00c8);
+    border: none;
+    padding: 10px 16px;
+    border-radius: 10px;
+    color: white;
+    cursor: pointer;
+    transition: 0.2s ease;
+}
+
+button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
+}
+
+/* =======================
+   ACTION BUTTONS
+======================= */
+.action-buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+/* =======================
+   JOB LIST
+======================= */
+.job-item {
+    padding: 12px;
+    margin: 10px 0;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* =======================
+   PREVIEW
+======================= */
+#preview img {
+    width: 80px;
+    height: 80px;
+    object-fit: cover;
+    border-radius: 10px;
+    margin: 5px;
+    transition: 0.2s;
+}
+
+#preview img:hover {
+    transform: scale(1.1);
+}
+
+/* =======================
+   PDF PREVIEW
+======================= */
+.pdf-item {
+    display: inline-block;
+    margin: 10px;
+    cursor: pointer;
+}
+
+.pdf-item.selected {
+    outline: 3px solid #ff5c5c;
+}
+
+/* =======================
+   FOOTER
+======================= */
+.footer {
+    /* margin-left: 240px; */
+    margin-top: 80px;
+    padding: 30px;
+    text-align: center;
+    font-size: 13px;
+    opacity: 0.6;
+}
+
+.footer-container {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+}
+
+/* =======================
+   ANIMATIONS
+======================= */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(15px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* =======================
+   UTIL
+======================= */
+.hidden {
+    display: none;
+}
+
+#queueSection {
+    max-width: 700px;
+    margin: 0 auto 30px;
+    padding: 15px 20px;
+    border-radius: 16px;
+    font-size: 14px;
+}
+
+/* FILE PREVIEW CARD */
+.file-card {
+    padding: 10px;
+    margin-top: 10px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.15);
+}
+
+/* RESULT VIEWER */
+#resultViewer iframe {
+    width: 100%;
+    height: 400px;
+    margin-top: 15px;
+    border-radius: 10px;
+    border: none;
+}
+
+.download-btn {
+    background: linear-gradient(135deg, #2962ff, #448aff);
+    padding: 10px 14px;
+    border-radius: 10px;
+    color: white;
+    text-decoration: none;
+    transition: 0.2s;
+}
+
+.download-btn:hover {
+    transform: scale(1.05);
+}
+
+
+/* TOAST */
+#toastContainer {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+}
+
+.toast {
+    background: rgba(30, 30, 30, 0.9);
+    color: #fff;
+    padding: 12px 16px;
+    margin-top: 10px;
+    border-radius: 10px;
+    min-width: 220px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+    animation: slideIn 0.3s ease;
+    font-size: 14px;
+}
+
+.toast.success {
+    border-left: 4px solid #00c853;
+}
+
+.toast.error {
+    border-left: 4px solid #ff5252;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0
+    }
+
+    to {
+        transform: translateX(0);
+        opacity: 1
+    }
+}
+
+/* =======================
+   RESPONSIVE DESIGN
+======================= */
+
+/* TABLET */
+@media (max-width: 1024px) {
+    .tool-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .main {
+        padding: 100px 20px 20px;
+    }
+
+    .card {
+        padding: 20px;
+    }
+}
+
+/* MOBILE */
+@media (max-width: 768px) {
+    .navbar {
+        padding: 8px 10px;
+        height: 60px;
+        border-radius: 0;
+    }
+
+    .logo {
+        font-size: 16px;
+    }
+
+    .menu-btn {
+        padding: 8px 10px;
+        font-size: 16px;
+    }
+
+    /* RIGHT BUTTONS FIX */
+    .navbar button {
+        padding: 8px 10px;
+        font-size: 14px;
+    }
+
+    /* SIDEBAR FULL OVERLAY */
+    .sidebar {
+        width: 220px;
+        top: 60px;
+        height: calc(100% - 60px);
+    }
+
+    .main {
+        padding: 80px 12px 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .card {
+        width: 100%;
+        max-width: 100%;
+        padding: 20px 15px;
+        border-radius: 18px;
+    }
+
+
+    /* TOOL GRID SINGLE COLUMN */
+    .tool-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+
+    .tool-card {
+        width: 100%;
+    }
+
+    /* BUTTON STACK */
+    .action-buttons {
+        flex-direction: column;
+        gap: 12px;
+        padding: 6px 8px;
+        font-size: 14px;
+    }
+
+    button,
+    .download-btn {
+        width: 100%;
+        padding: 12px;
+        font-size: 15px;
+        border-radius: 12px;
+    }
+
+    input[type="file"] {
+        width: 100%;
+        font-size: 14px;
+    }
+
+    /* DROP ZONE */
+    .drop-zone {
+        padding: 30px 15px;
+    }
+
+    /* PREVIEW IMAGES */
+    #preview img {
+        width: 60px;
+        height: 60px;
+    }
+
+    /* FOOTER STACK */
+    .footer {
+        margin-top: 40px;
+        padding: 20px;
+    }
+
+    .footer-container {
+        flex-direction: column;
+        gap: 10px;
+        text-align: center;
+    }
+}

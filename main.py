@@ -147,6 +147,10 @@ def process_split(path, page):
 
 def process_word(path):
     try:
+        # 🔍 Debug: check if libreoffice exists
+        check = subprocess.run(["which", LIBRE_CMD], capture_output=True, text=True)
+        print("LibreOffice path:", check.stdout)
+
         result = subprocess.run([
             LIBRE_CMD,
             "--headless",
@@ -155,8 +159,11 @@ def process_word(path):
             path
         ], capture_output=True, text=True)
 
+        print("LibreOffice stdout:", result.stdout)
+        print("LibreOffice stderr:", result.stderr)
+
     except FileNotFoundError:
-        raise Exception("LibreOffice not installed")
+        raise Exception("LibreOffice not installed or not found in PATH")
 
     output = os.path.join(
         OUTPUT_DIR,
@@ -167,7 +174,6 @@ def process_word(path):
         raise Exception(result.stderr or "Word → PDF failed")
 
     return output
-
 
 def process_pdf_to_word(path):
     output = f"{OUTPUT_DIR}/{uuid.uuid4()}.docx"

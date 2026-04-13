@@ -5,3 +5,4 @@ pypdf
 python-multipart
 pdf2docx
 docx2pdf
+jinja2

@@ -32,10 +32,7 @@ jobs = {}
 IS_WINDOWS = platform.system() == "Windows"
 
 GS_CMD = "gswin64c" if IS_WINDOWS else "gs"
-LIBRE_CMD = (
-    r"C:\Program Files\LibreOffice\program\soffice.exe"
-    if IS_WINDOWS else "libreoffice"
-)
+LIBRE_CMD = "libreoffice"
 
 # =============================
 # HOME
@@ -147,10 +144,6 @@ def process_split(path, page):
 
 def process_word(path):
     try:
-        # 🔍 Debug: check if libreoffice exists
-        check = subprocess.run(["which", LIBRE_CMD], capture_output=True, text=True)
-        print("LibreOffice path:", check.stdout)
-
         result = subprocess.run([
             LIBRE_CMD,
             "--headless",
@@ -159,11 +152,11 @@ def process_word(path):
             path
         ], capture_output=True, text=True)
 
-        print("LibreOffice stdout:", result.stdout)
-        print("LibreOffice stderr:", result.stderr)
-
     except FileNotFoundError:
-        raise Exception("LibreOffice not installed or not found in PATH")
+        raise Exception("LibreOffice not installed")
+
+    if result.returncode != 0:
+        raise Exception(result.stderr or "LibreOffice failed")
 
     output = os.path.join(
         OUTPUT_DIR,
@@ -171,7 +164,7 @@ def process_word(path):
     )
 
     if not os.path.exists(output):
-        raise Exception(result.stderr or "Word → PDF failed")
+        raise Exception("Output file not created")
 
     return output
 

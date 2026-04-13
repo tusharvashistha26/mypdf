@@ -5,5 +5,3 @@ pypdf
 python-multipart
 pdf2docx
 docx2pdf
-libreoffice
-poppler-utils

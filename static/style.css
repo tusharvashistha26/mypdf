@@ -204,7 +204,7 @@ h2 {
 ======================= */
 .dashboard-box {
     width: 100%;
-    max-width: 1000px;
+    max-width: 700px;
     margin: 0 auto;
     padding: 40px;
     border-radius: 20px;
@@ -213,11 +213,12 @@ h2 {
 /* =======================
    TOOL GRID (UPDATED)
 ======================= */
+
 .tool-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 25px;
-    margin-top: 20px;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 20px;
+    padding: 10px;
 }
 
 /* =======================
@@ -504,18 +505,18 @@ button:hover {
 /* MOBILE */
 @media (max-width: 768px) {
     .navbar {
-        padding: 8px 10px;
-        height: 60px;
+        height: 55px;
+        padding: 8px 12px;
         border-radius: 0;
     }
 
     .logo {
-        font-size: 16px;
+        font-size: 15px;
     }
 
     .menu-btn {
-        padding: 8px 10px;
-        font-size: 16px;
+        padding: 8px;
+        border-radius: 8px;
     }
 
     /* RIGHT BUTTONS FIX */
@@ -525,10 +526,22 @@ button:hover {
     }
 
     /* SIDEBAR FULL OVERLAY */
+
+
     .sidebar {
-        width: 220px;
+        position: fixed;
         top: 60px;
+        width: 80%;
         height: calc(100% - 60px);
+        background: #2a1a5e;
+
+        transition: 0.3s ease;
+        z-index: 2000;
+        padding-top: 80px;
+    }
+
+    .sidebar.open {
+        left: 0;
     }
 
     .main {
@@ -536,45 +549,83 @@ button:hover {
         display: flex;
         flex-direction: column;
         align-items: center;
+        padding-bottom: 80px;
     }
 
     .card {
         width: 100%;
         max-width: 100%;
-        padding: 20px 15px;
-        border-radius: 18px;
-    }
-
-
-    /* TOOL GRID SINGLE COLUMN */
-    .tool-grid {
-        grid-template-columns: 1fr;
-        gap: 20px;
+        padding: 18px 14px;
+        border-radius: 16px;
+        backdrop-filter: blur(18px);
+        animation: fadeIn 0.4s ease;
     }
 
     .dashboard-box {
-        padding: 20px;
+        padding: 16px;
+    }
+
+    .tool-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        /* 2 per row */
+        gap: 14px;
+        padding: 10px;
     }
 
     .tool-card {
-        height: 130px;
+        height: 120px;
+        border-radius: 18px;
+        padding: 12px;
+
+        background: rgba(255, 255, 255, 0.08);
+        backdrop-filter: blur(20px);
+
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+
+        transition: all 0.25s ease;
     }
 
-    /* BUTTON STACK */
-    .action-buttons {
-        flex-direction: column;
-        gap: 12px;
-        padding: 6px 8px;
+    .tool-card .icon {
+        font-size: 26px;
+        margin-bottom: 6px;
+        animation: fadeIn 0.4s ease;
+    }
+
+    .tool-card h3 {
         font-size: 14px;
+        margin: 2px 0;
+    }
+
+    .tool-card p {
+        display: none;
+        /* cleaner mobile UI */
+    }
+
+    .tool-card:active {
+        transform: scale(0.95);
     }
 
     button,
     .download-btn {
         width: 100%;
-        padding: 12px;
+        padding: 14px;
         font-size: 15px;
-        border-radius: 12px;
+        border-radius: 14px;
+        font-weight: 500;
     }
+
+    /* BUTTON STACK */
+    .action-buttons {
+        flex-direction: column;
+        gap: 10px;
+        padding: 6px 8px;
+        font-size: 14px;
+    }
+
 
     input[type="file"] {
         width: 100%;
@@ -583,7 +634,9 @@ button:hover {
 
     /* DROP ZONE */
     .drop-zone {
-        padding: 30px 15px;
+        padding: 25px 10px;
+        border-radius: 14px;
+        font-size: 14px;
     }
 
     /* PREVIEW IMAGES */
@@ -591,6 +644,11 @@ button:hover {
         width: 60px;
         height: 60px;
     }
+
+    .nav-actions {
+        gap: 6px;
+    }
+
 
     /* FOOTER STACK */
     .footer {
@@ -603,4 +661,17 @@ button:hover {
         gap: 10px;
         text-align: center;
     }
+
+
+    /* DARK OVERLAY */
+    .overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 1500;
+    }
+
 }

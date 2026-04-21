@@ -2,3 +2,4 @@ services:
   - type: web
     name: mypdf
     env: docker
+    plan: free

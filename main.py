@@ -6,7 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from pdf2docx import Converter
 from PIL import Image
 from pypdf import PdfReader, PdfWriter
-
+import platform
 from docx import Document
 from weasyprint import HTML
 
@@ -153,19 +153,43 @@ def process_split(path, page):
 # =============================
 # 🚀 PURE PYTHON WORD → PDF
 # =============================
+
 def process_word(path):
-    doc = Document(path)
-
-    html_content = "<h1></h1>"
-
-    for para in doc.paragraphs:
-        html_content += f"<p>{para.text}</p>"
-
     output = f"{OUTPUT_DIR}/{uuid.uuid4()}.pdf"
 
-    HTML(string=html_content).write_pdf(output)
+    # 🪟 WINDOWS → fallback (simple text PDF)
+    if platform.system() == "Windows":
+        from reportlab.lib.pagesizes import letter
+        from reportlab.pdfgen import canvas
+        from docx import Document
 
-    return output
+        doc = Document(path)
+        c = canvas.Canvas(output, pagesize=letter)
+
+        y = 750
+        for para in doc.paragraphs:
+            c.drawString(50, y, para.text[:90])
+            y -= 20
+            if y < 50:
+                c.showPage()
+                y = 750
+
+        c.save()
+        return output
+
+    # 🐧 LINUX (Render) → WeasyPrint (FULL QUALITY)
+    else:
+        from docx import Document
+        from weasyprint import HTML
+
+        doc = Document(path)
+
+        html = ""
+        for p in doc.paragraphs:
+            html += f"<p>{p.text}</p>"
+
+        HTML(string=html).write_pdf(output)
+        return output
 
 
 # =============================

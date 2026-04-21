@@ -4,6 +4,8 @@ pillow
 pypdf
 python-multipart
 pdf2docx
-jinja2
-weasyprint
 python-docx
+jinja2
+PyMuPDF
+reportlab
+weasyprint

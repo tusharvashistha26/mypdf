@@ -3,3 +3,4 @@ services:
     name: mypdf
     env: docker
     plan: free
+    autoDeploy: true

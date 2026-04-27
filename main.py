@@ -19,17 +19,14 @@ import platform
 # =============================
 # ENV DETECTION
 # =============================
+
 IS_WINDOWS = platform.system() == "Windows"
 
-LIBREOFFICE = (
-    r"C:\Program Files\LibreOffice\program\soffice.exe"
-    if IS_WINDOWS else "soffice"
-)
+LIBREOFFICE = shutil.which("libreoffice") or shutil.which("soffice")
+GHOSTSCRIPT = shutil.which("gs")
 
-GHOSTSCRIPT = (
-    r"C:\Program Files\gs\gs10.07.0\bin\gswin64c.exe"
-    if IS_WINDOWS else "gs"
-)
+print("LibreOffice Path:", LIBREOFFICE)
+print("Ghostscript Path:", GHOSTSCRIPT)
 
 # =============================
 # APP INIT
@@ -130,30 +127,28 @@ def home(request: Request):
 # PROCESS WORD → PDF
 # =============================
 def process_word(job_id, path):
+    if not LIBREOFFICE:
+        raise Exception("LibreOffice not installed")
+
     update_progress(job_id, 20)
 
-    result = subprocess.run(
-        [
-            LIBREOFFICE,
-            "--headless",
-            "--invisible",
-            "--nologo",
-            "--nofirststartwizard",
-            "--nodefault",
-            "--nolockcheck",
-            "--convert-to", "pdf",
-            "--outdir", OUTPUT_DIR,
-            path
-        ],
-        capture_output=True,
-        check=True,
-        env={**os.environ, "HOME": "/tmp"}
-    )
+    cmd = [
+        LIBREOFFICE,
+        "--headless",
+        "--convert-to", "pdf",
+        "--outdir", OUTPUT_DIR,
+        path
+    ]
 
-    print("STDOUT:", result.stdout.decode())
-    print("STDERR:", result.stderr.decode())
+    print("Running:", cmd)
 
-    update_progress(job_id, 80)
+    result = subprocess.run(cmd, capture_output=True, text=True)
+
+    print("STDOUT:", result.stdout)
+    print("STDERR:", result.stderr)
+
+    if result.returncode != 0:
+        raise Exception(result.stderr or "LibreOffice failed")
 
     output = os.path.join(
         OUTPUT_DIR,
@@ -161,36 +156,43 @@ def process_word(job_id, path):
     )
 
     if not os.path.exists(output):
-        raise Exception("Output not created")
+        raise Exception("PDF not generated")
 
+    update_progress(job_id, 100)
     return output
-
 # =============================
 # COMPRESS PDF
 # =============================
 def process_compress(job_id, path, level):
+    if not GHOSTSCRIPT:
+        raise Exception("Ghostscript not installed")
+
     update_progress(job_id, 30)
 
     output = f"{OUTPUT_DIR}/{uuid.uuid4()}.pdf"
 
-    subprocess.run(
-        [
-            GHOSTSCRIPT,
-            "-sDEVICE=pdfwrite",
-            "-dCompatibilityLevel=1.4",
-            f"-dPDFSETTINGS={level}",
-            "-dNOPAUSE",
-            "-dQUIET",
-            "-dBATCH",
-            f"-sOutputFile={output}",
-            path
-        ],
-        capture_output=True,
-        check=True
-    )
+    cmd = [
+        GHOSTSCRIPT,
+        "-sDEVICE=pdfwrite",
+        "-dCompatibilityLevel=1.4",
+        f"-dPDFSETTINGS={level}",
+        "-dNOPAUSE",
+        "-dQUIET",
+        "-dBATCH",
+        f"-sOutputFile={output}",
+        path
+    ]
+
+    print("Running:", cmd)
+
+    result = subprocess.run(cmd, capture_output=True, text=True)
+
+    print("STDERR:", result.stderr)
+
+    if result.returncode != 0:
+        raise Exception(result.stderr or "Ghostscript failed")
 
     return output
-
 # =============================
 # PDF → WORD
 # =============================
@@ -265,3 +267,11 @@ def download(job_id: str):
         raise HTTPException(400, "Not ready")
 
     return FileResponse(job["file"], filename=os.path.basename(job["file"]))
+
+@app.exception_handler(Exception)
+def global_exception(request: Request, exc: Exception):
+    print("GLOBAL ERROR:", str(exc))
+    return JSONResponse(
+        status_code=500,
+        content={"status": "error", "message": str(exc)}
+    )

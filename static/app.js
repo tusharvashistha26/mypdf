@@ -386,3 +386,28 @@ function clearPDFWord() {
 function hideDownload(id) {
     document.getElementById(id)?.classList.add("hidden")
 }
+
+async function startJob(formData, endpoint) {
+    const res = await fetch(endpoint, {
+        method: "POST",
+        body: formData
+    });
+
+    const data = await res.json();
+    track(data.job_id);
+}
+
+async function track(jobId) {
+    const res = await fetch(`/job-status/${jobId}`);
+    const data = await res.json();
+
+    document.querySelector(".progress-fill").style.width = data.progress + "%";
+
+    if (data.status === "completed") {
+        window.location = data.download_url;
+    } else if (data.status === "failed") {
+        alert(data.message);
+    } else {
+        setTimeout(() => track(jobId), 1000);
+    }
+}

@@ -8,4 +8,3 @@ python-docx
 jinja2
 PyMuPDF
 reportlab
-weasyprint

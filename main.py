@@ -16,17 +16,21 @@ import queue
 import time
 import platform
 
+# =============================
+# ENV DETECTION
+# =============================
 IS_WINDOWS = platform.system() == "Windows"
 
 LIBREOFFICE = (
     r"C:\Program Files\LibreOffice\program\soffice.exe"
-    if IS_WINDOWS else "libreoffice"
+    if IS_WINDOWS else "soffice"
 )
 
 GHOSTSCRIPT = (
     r"C:\Program Files\gs\gs10.07.0\bin\gswin64c.exe"
     if IS_WINDOWS else "gs"
 )
+
 # =============================
 # APP INIT
 # =============================
@@ -85,7 +89,7 @@ def update_progress(job_id, value):
             jobs[job_id]["progress"] = value
 
 # =============================
-# WORKER (QUEUE)
+# WORKER (ONLY 1 for LibreOffice)
 # =============================
 def worker():
     while True:
@@ -103,6 +107,7 @@ def worker():
                 }
 
         except Exception as e:
+            print("ERROR:", str(e))
             with lock:
                 jobs[job_id] = {
                     "status": "failed",
@@ -111,9 +116,8 @@ def worker():
 
         job_queue.task_done()
 
-# start workers
-for _ in range(3):
-    threading.Thread(target=worker, daemon=True).start()
+# 🚨 ONLY ONE WORKER (important)
+threading.Thread(target=worker, daemon=True).start()
 
 # =============================
 # HOME
@@ -123,26 +127,31 @@ def home(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
 # =============================
-# PROCESS FUNCTIONS
+# PROCESS WORD → PDF
 # =============================
 def process_word(job_id, path):
     update_progress(job_id, 20)
 
-    result = subprocess.run([
-        LIBREOFFICE,
-        "--headless",
-        "--invisible",
-        "--nologo",
-        "--nofirststartwizard",
-        "--nodefault",
-        "--nolockcheck",
-        "--convert-to", "pdf",
-        "--outdir", OUTPUT_DIR,
-        path
-    ], capture_output=True)
+    result = subprocess.run(
+        [
+            LIBREOFFICE,
+            "--headless",
+            "--invisible",
+            "--nologo",
+            "--nofirststartwizard",
+            "--nodefault",
+            "--nolockcheck",
+            "--convert-to", "pdf",
+            "--outdir", OUTPUT_DIR,
+            path
+        ],
+        capture_output=True,
+        check=True,
+        env={**os.environ, "HOME": "/tmp"}
+    )
 
-    if result.returncode != 0:
-        raise Exception(result.stderr.decode() or "Conversion failed")
+    print("STDOUT:", result.stdout.decode())
+    print("STDERR:", result.stderr.decode())
 
     update_progress(job_id, 80)
 
@@ -156,28 +165,35 @@ def process_word(job_id, path):
 
     return output
 
+# =============================
+# COMPRESS PDF
+# =============================
 def process_compress(job_id, path, level):
     update_progress(job_id, 30)
 
     output = f"{OUTPUT_DIR}/{uuid.uuid4()}.pdf"
 
-    result = subprocess.run([
-        GHOSTSCRIPT,
-        "-sDEVICE=pdfwrite",
-        "-dCompatibilityLevel=1.4",
-        f"-dPDFSETTINGS={level}",
-        "-dNOPAUSE",
-        "-dQUIET",
-        "-dBATCH",
-        f"-sOutputFile={output}",
-        path
-    ], capture_output=True)
-
-    if result.returncode != 0:
-        raise Exception(result.stderr.decode() or "Compression failed")
+    subprocess.run(
+        [
+            GHOSTSCRIPT,
+            "-sDEVICE=pdfwrite",
+            "-dCompatibilityLevel=1.4",
+            f"-dPDFSETTINGS={level}",
+            "-dNOPAUSE",
+            "-dQUIET",
+            "-dBATCH",
+            f"-sOutputFile={output}",
+            path
+        ],
+        capture_output=True,
+        check=True
+    )
 
     return output
 
+# =============================
+# PDF → WORD
+# =============================
 def process_pdf_to_word(job_id, path):
     update_progress(job_id, 30)
 
@@ -188,7 +204,6 @@ def process_pdf_to_word(job_id, path):
     cv.close()
 
     return output
-
 
 # =============================
 # ENQUEUE
@@ -202,11 +217,9 @@ async def enqueue_word(request: Request, file: UploadFile = File(...)):
     path = save_file(file)
 
     jobs[job_id] = {"status": "processing", "progress": 0}
-
     job_queue.put((job_id, process_word, (path,)))
 
     return {"job_id": job_id}
-
 
 @app.post("/enqueue/compress-pdf")
 async def enqueue_compress(request: Request, file: UploadFile = File(...), level: str = Form(...)):
@@ -217,11 +230,9 @@ async def enqueue_compress(request: Request, file: UploadFile = File(...), level
     path = save_file(file)
 
     jobs[job_id] = {"status": "processing", "progress": 0}
-
     job_queue.put((job_id, process_compress, (path, level)))
 
     return {"job_id": job_id}
-
 
 @app.post("/enqueue/pdf-to-word")
 async def enqueue_pdf(request: Request, file: UploadFile = File(...)):
@@ -232,11 +243,9 @@ async def enqueue_pdf(request: Request, file: UploadFile = File(...)):
     path = save_file(file)
 
     jobs[job_id] = {"status": "processing", "progress": 0}
-
     job_queue.put((job_id, process_pdf_to_word, (path,)))
 
     return {"job_id": job_id}
-
 
 # =============================
 # STATUS
@@ -244,7 +253,6 @@ async def enqueue_pdf(request: Request, file: UploadFile = File(...)):
 @app.get("/job-status/{job_id}")
 def job_status(job_id: str):
     return JSONResponse(jobs.get(job_id, {"status": "not_found"}))
-
 
 # =============================
 # DOWNLOAD

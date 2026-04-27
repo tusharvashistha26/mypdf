@@ -11,6 +11,8 @@ RUN apt-get update && apt-get install -y \
     libxext6 \
     && apt-get clean
 
+ENV HOME=/tmp
+
 WORKDIR /app
 
 COPY . .

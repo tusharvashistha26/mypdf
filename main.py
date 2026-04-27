@@ -21,14 +21,8 @@ import time
 LIBREOFFICE = shutil.which("libreoffice") or shutil.which("soffice")
 GHOSTSCRIPT = shutil.which("gs")
 
-print("LibreOffice:", LIBREOFFICE)
-print("Ghostscript:", GHOSTSCRIPT)
-
-if not LIBREOFFICE:
-    raise Exception("LibreOffice NOT FOUND")
-
-if not GHOSTSCRIPT:
-    raise Exception("Ghostscript NOT FOUND")
+print("LibreOffice Path:", LIBREOFFICE)
+print("Ghostscript Path:", GHOSTSCRIPT)
 
 # =============================
 # APP INIT
@@ -50,13 +44,15 @@ lock = threading.Lock()
 job_queue = queue.Queue()
 
 # =============================
-# RATE LIMIT
+# RATE LIMIT (FIXED)
 # =============================
 RATE_LIMIT = {}
 MAX_REQUESTS = 10
 WINDOW = 60
 
 def check_rate_limit(ip):
+    ip = str(ip)  # ✅ FIX
+
     now = time.time()
 
     if ip not in RATE_LIMIT:
@@ -80,7 +76,7 @@ def save_file(file: UploadFile):
     return path
 
 # =============================
-# UPDATE PROGRESS
+# PROGRESS UPDATE
 # =============================
 def update_progress(job_id, value):
     with lock:
@@ -88,34 +84,35 @@ def update_progress(job_id, value):
             jobs[job_id]["progress"] = value
 
 # =============================
-# WORKER THREAD
+# WORKER QUEUE
 # =============================
 def worker():
     while True:
-        job = job_queue.get()
-
-        job_id = job["id"]
-        func = job["func"]
-        args = job["args"]
+        job_id, func, args = job_queue.get()
 
         try:
             output = func(job_id, *args)
 
             with lock:
-                jobs[job_id]["status"] = "completed"
-                jobs[job_id]["progress"] = 100
-                jobs[job_id]["file"] = output
-                jobs[job_id]["download_url"] = f"/download/{job_id}"
+                jobs[job_id] = {
+                    "status": "completed",
+                    "progress": 100,
+                    "file": output,
+                    "download_url": f"/download/{job_id}"
+                }
 
         except Exception as e:
+            print("ERROR:", str(e))
             with lock:
-                jobs[job_id]["status"] = "failed"
-                jobs[job_id]["error"] = str(e)
+                jobs[job_id] = {
+                    "status": "failed",
+                    "message": str(e)
+                }
 
         job_queue.task_done()
 
 # start workers
-for _ in range(2):  # keep low for Render
+for _ in range(3):
     threading.Thread(target=worker, daemon=True).start()
 
 # =============================
@@ -123,29 +120,33 @@ for _ in range(2):  # keep low for Render
 # =============================
 @app.get("/")
 def home(request: Request):
-    try:
-        return templates.TemplateResponse("index.html", {"request": request})
-    except Exception as e:
-        return JSONResponse({"status": "error", "message": str(e)})
+    return templates.TemplateResponse(request=request, name="index.html", context={"request": request})
 
 # =============================
 # PROCESS FUNCTIONS
 # =============================
 def process_word(job_id, path):
+    if not LIBREOFFICE:
+        raise Exception("LibreOffice not installed")
+
     update_progress(job_id, 20)
 
-    result = subprocess.run([
+    cmd = [
         LIBREOFFICE,
         "--headless",
         "--convert-to", "pdf",
         "--outdir", OUTPUT_DIR,
         path
-    ], capture_output=True)
+    ]
+
+    print("Running:", cmd)
+
+    result = subprocess.run(cmd, capture_output=True, text=True)
+
+    print("STDERR:", result.stderr)
 
     if result.returncode != 0:
-        raise Exception(result.stderr.decode())
-
-    update_progress(job_id, 80)
+        raise Exception(result.stderr or "LibreOffice failed")
 
     output = os.path.join(
         OUTPUT_DIR,
@@ -153,17 +154,21 @@ def process_word(job_id, path):
     )
 
     if not os.path.exists(output):
-        raise Exception("PDF not created")
+        raise Exception("PDF not generated")
 
+    update_progress(job_id, 100)
     return output
 
 
 def process_compress(job_id, path, level):
+    if not GHOSTSCRIPT:
+        raise Exception("Ghostscript not installed")
+
     update_progress(job_id, 30)
 
     output = f"{OUTPUT_DIR}/{uuid.uuid4()}.pdf"
 
-    result = subprocess.run([
+    cmd = [
         GHOSTSCRIPT,
         "-sDEVICE=pdfwrite",
         "-dCompatibilityLevel=1.4",
@@ -173,10 +178,16 @@ def process_compress(job_id, path, level):
         "-dBATCH",
         f"-sOutputFile={output}",
         path
-    ], capture_output=True)
+    ]
+
+    print("Running:", cmd)
+
+    result = subprocess.run(cmd, capture_output=True, text=True)
+
+    print("STDERR:", result.stderr)
 
     if result.returncode != 0:
-        raise Exception(result.stderr.decode())
+        raise Exception(result.stderr or "Ghostscript failed")
 
     return output
 
@@ -194,19 +205,16 @@ def process_pdf_to_word(job_id, path):
 
 
 # =============================
-# ENQUEUE
+# ENQUEUE APIs
 # =============================
-def add_job(job_id, func, args):
-    job_queue.put({
-        "id": job_id,
-        "func": func,
-        "args": args
-    })
-
-
 @app.post("/enqueue/word-to-pdf")
 async def enqueue_word(request: Request, file: UploadFile = File(...)):
-    if not check_rate_limit(request.client.host):
+    ip = request.headers.get("x-forwarded-for") or (
+        request.client.host if request.client else "anonymous"
+    )
+    ip = str(ip)
+
+    if not check_rate_limit(ip):
         raise HTTPException(429, "Too many requests")
 
     job_id = str(uuid.uuid4())
@@ -214,14 +222,19 @@ async def enqueue_word(request: Request, file: UploadFile = File(...)):
 
     jobs[job_id] = {"status": "processing", "progress": 0}
 
-    add_job(job_id, process_word, (path,))
+    job_queue.put((job_id, process_word, (path,)))
 
     return {"job_id": job_id}
 
 
 @app.post("/enqueue/compress-pdf")
 async def enqueue_compress(request: Request, file: UploadFile = File(...), level: str = Form(...)):
-    if not check_rate_limit(request.client.host):
+    ip = request.headers.get("x-forwarded-for") or (
+        request.client.host if request.client else "anonymous"
+    )
+    ip = str(ip)
+
+    if not check_rate_limit(ip):
         raise HTTPException(429, "Too many requests")
 
     job_id = str(uuid.uuid4())
@@ -229,14 +242,19 @@ async def enqueue_compress(request: Request, file: UploadFile = File(...), level
 
     jobs[job_id] = {"status": "processing", "progress": 0}
 
-    add_job(job_id, process_compress, (path, level))
+    job_queue.put((job_id, process_compress, (path, level)))
 
     return {"job_id": job_id}
 
 
 @app.post("/enqueue/pdf-to-word")
 async def enqueue_pdf(request: Request, file: UploadFile = File(...)):
-    if not check_rate_limit(request.client.host):
+    ip = request.headers.get("x-forwarded-for") or (
+        request.client.host if request.client else "anonymous"
+    )
+    ip = str(ip)
+
+    if not check_rate_limit(ip):
         raise HTTPException(429, "Too many requests")
 
     job_id = str(uuid.uuid4())
@@ -244,7 +262,7 @@ async def enqueue_pdf(request: Request, file: UploadFile = File(...)):
 
     jobs[job_id] = {"status": "processing", "progress": 0}
 
-    add_job(job_id, process_pdf_to_word, (path,))
+    job_queue.put((job_id, process_pdf_to_word, (path,)))
 
     return {"job_id": job_id}
 
@@ -268,3 +286,15 @@ def download(job_id: str):
         raise HTTPException(400, "Not ready")
 
     return FileResponse(job["file"], filename=os.path.basename(job["file"]))
+
+
+# =============================
+# GLOBAL ERROR HANDLER
+# =============================
+@app.exception_handler(Exception)
+def global_exception(request: Request, exc: Exception):
+    print("GLOBAL ERROR:", str(exc))
+    return JSONResponse(
+        status_code=500,
+        content={"status": "error", "message": str(exc)}
+    )

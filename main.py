@@ -1,5 +1,6 @@
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse
+from typing import List
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 
@@ -204,6 +205,68 @@ def process_pdf_to_word(job_id, path):
     return output
 
 
+def process_images_to_pdf(job_id, paths):
+    update_progress(job_id, 20)
+    output = f"{OUTPUT_DIR}/{uuid.uuid4()}.pdf"
+    
+    images = []
+    for p in paths:
+        try:
+            img = Image.open(p)
+            if img.mode != "RGB":
+                img = img.convert("RGB")
+            images.append(img)
+        except Exception as e:
+            print(f"Failed to open image {p}: {e}")
+            
+    update_progress(job_id, 50)
+    
+    if not images:
+        raise Exception("No valid images provided")
+        
+    images[0].save(output, "PDF", resolution=100.0, save_all=True, append_images=images[1:])
+        
+    update_progress(job_id, 100)
+    return output
+
+
+def process_merge_pdfs(job_id, paths):
+    update_progress(job_id, 20)
+    output = f"{OUTPUT_DIR}/{uuid.uuid4()}.pdf"
+    
+    merger = PdfWriter()
+    for p in paths:
+        merger.append(p)
+        
+    update_progress(job_id, 80)
+    merger.write(output)
+    merger.close()
+    
+    update_progress(job_id, 100)
+    return output
+
+
+def process_split_pdf(job_id, path, page):
+    update_progress(job_id, 20)
+    output = f"{OUTPUT_DIR}/{uuid.uuid4()}.pdf"
+    
+    reader = PdfReader(path)
+    writer = PdfWriter()
+    
+    page_idx = int(page) - 1
+    if page_idx < 0 or page_idx >= len(reader.pages):
+        raise Exception("Invalid page number")
+        
+    writer.add_page(reader.pages[page_idx])
+    
+    update_progress(job_id, 80)
+    with open(output, "wb") as f:
+        writer.write(f)
+        
+    update_progress(job_id, 100)
+    return output
+
+
 # =============================
 # ENQUEUE APIs
 # =============================
@@ -263,6 +326,63 @@ async def enqueue_pdf(request: Request, file: UploadFile = File(...)):
     jobs[job_id] = {"status": "processing", "progress": 0}
 
     job_queue.put((job_id, process_pdf_to_word, (path,)))
+
+    return {"job_id": job_id}
+
+
+@app.post("/enqueue/images-to-pdf")
+async def enqueue_images_to_pdf(request: Request, files: List[UploadFile] = File(...)):
+    ip = request.headers.get("x-forwarded-for") or (
+        request.client.host if request.client else "anonymous"
+    )
+    ip = str(ip)
+
+    if not check_rate_limit(ip):
+        raise HTTPException(429, "Too many requests")
+
+    job_id = str(uuid.uuid4())
+    paths = [save_file(f) for f in files]
+
+    jobs[job_id] = {"status": "processing", "progress": 0}
+    job_queue.put((job_id, process_images_to_pdf, (paths,)))
+
+    return {"job_id": job_id}
+
+
+@app.post("/enqueue/merge-pdf")
+async def enqueue_merge_pdf(request: Request, files: List[UploadFile] = File(...)):
+    ip = request.headers.get("x-forwarded-for") or (
+        request.client.host if request.client else "anonymous"
+    )
+    ip = str(ip)
+
+    if not check_rate_limit(ip):
+        raise HTTPException(429, "Too many requests")
+
+    job_id = str(uuid.uuid4())
+    paths = [save_file(f) for f in files]
+
+    jobs[job_id] = {"status": "processing", "progress": 0}
+    job_queue.put((job_id, process_merge_pdfs, (paths,)))
+
+    return {"job_id": job_id}
+
+
+@app.post("/enqueue/split-pdf")
+async def enqueue_split_pdf(request: Request, file: UploadFile = File(...), page: str = Form(...)):
+    ip = request.headers.get("x-forwarded-for") or (
+        request.client.host if request.client else "anonymous"
+    )
+    ip = str(ip)
+
+    if not check_rate_limit(ip):
+        raise HTTPException(429, "Too many requests")
+
+    job_id = str(uuid.uuid4())
+    path = save_file(file)
+
+    jobs[job_id] = {"status": "processing", "progress": 0}
+    job_queue.put((job_id, process_split_pdf, (path, page)))
 
     return {"job_id": job_id}
 
